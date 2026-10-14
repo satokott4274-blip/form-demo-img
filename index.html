@@ -1,0 +1,713 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>申込フォーム確認</title>
+<style>
+:root{--bg:#f4f6fb;--card:#ffffff;--ink:#1f2633;--sub:#5b6474;--brand:#5170ff;--soft:#e8edff;--note:#fff8d6;--note-line:#ecd77a;--ok:#1f8a4c;--ok-soft:#e5f5ec}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11151d;--card:#ffffff;--ink:#1f2633;--sub:#5b6474;--soft:#e8edff;--note:#3a3518;--note-line:#6b5e1d;--ok-soft:#e5f5ec}}
+:root[data-theme="dark"]{--bg:#11151d;--note:#3a3518;--note-line:#6b5e1d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",Meiryo,sans-serif;line-height:1.7}
+.wrap{max-width:560px;margin:0 auto;padding:20px 16px 60px}
+.note{background:var(--note);border:1px solid var(--note-line);border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:18px}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .note{color:#f3e7b0}}
+.hero{background:var(--brand);color:#fff;border-radius:14px;padding:26px 20px;margin-bottom:18px}
+.hero b{display:block;font-size:22px;line-height:1.4}
+.card{background:var(--card);border-radius:14px;padding:20px 16px;margin-bottom:22px;box-shadow:0 6px 18px -12px rgba(20,30,60,.45)}
+.tag{display:inline-block;font-size:12px;font-weight:700;color:var(--brand);background:var(--soft);border-radius:999px;padding:3px 10px;margin-bottom:12px}
+.res{margin-top:14px;border:1.5px solid var(--ok);background:var(--ok-soft);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--ink)}
+.res b{color:var(--ok);font-size:14px}
+.res dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 12px;margin:8px 0 6px}
+.res dt{color:var(--sub)}.res dd{margin:0;white-space:pre-wrap;word-break:break-all}
+.res p{margin:0;color:var(--sub);font-size:12px}
+</style>
+<script>
+// 本物のGASの代わり：設定は「設定」タブと同じ中身を返し、送信は成功を返す
+window.__CFGS = {"":{"title":"遺品整理の無料見積もりフォーム","image":"img/banner_ihin.png","description":"『お名前』と『電話番号』を入力すると、無料見積もりにお進みいただけます。","button":"無料見積もりに進む","color":"#5170ff","privacyUrl":"","fields":[{"label":"お名前","type":"name","required":true,"placeholder":"例）山田 花子","max":50},{"label":"電話番号","type":"tel","required":true,"placeholder":"例）090-1234-5678","max":20}]},"不用品買取":{"title":"不用品買取の無料出張査定 ご予約フォーム","image":"img/banner_fuyou.png","description":"『お名前』と『電話番号』を\nご入力されますと、\n【無料出張査定の日程調節】\nにお進みいただけます。","button":"日程調節に進む","color":"#5170ff","privacyUrl":"","fields":[{"label":"お名前","type":"name","required":true,"placeholder":"例）山田 花子","max":50},{"label":"電話番号","type":"tel","required":true,"placeholder":"例）090-1234-5678","max":20}]}};
+(function () {
+  var real = window.fetch;
+  window.fetch = function (url, opt) {
+    if (String(url).indexOf('script.google.com') === -1) return real.apply(this, arguments);
+    var json = function (o, ms) { return new Promise(function (r) { setTimeout(function () { r({ json: function () { return Promise.resolve(o); } }); }, ms); }); };
+    if (!opt || opt.method === 'GET') {
+      var form = new URL(String(url)).searchParams.get('form') || '';
+      var c = JSON.parse(JSON.stringify(window.__CFGS[form] || window.__CFGS['']));
+      if (c.image) c.image = new URL(c.image, location.href).href; // 画像はこのページと同じ場所に置いてある
+      return json({ ok: true, config: c }, 200);
+    }
+    return json({ ok: true, redirect: '' }, 900);
+  };
+  function tel(v) { var d = String(v).replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).replace(/[^\d]/g, '');
+    return d.length === 11 ? d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7) : d.slice(0, 2) + '-' + d.slice(2, 6) + '-' + d.slice(6); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  // 送信成功時：移動する代わりに、本番で記録・通知される中身をフォームの下に出す
+  window.NF_ON_SUCCESS = function (values, source, form, btn, label) {
+    var host = form.getRootNode().host, box = (host.nextElementSibling && host.nextElementSibling.classList.contains('res')) ? host.nextElementSibling : document.createElement('div');
+    box.className = 'res';
+    var rows = Object.keys(values).map(function (k) {
+      var v = values[k].trim(); if (/電話/.test(k) && v) v = tel(v);
+      return '<dt>' + esc(k) + '</dt><dd>' + esc(v || '（なし）') + '</dd>';
+    }).join('') + '<dt>流入元</dt><dd>' + esc((host.getAttribute('data-form') ? '【' + host.getAttribute('data-form') + '】' : '') + source) + '</dd>';
+    box.innerHTML = '<b>送信できました</b><dl>' + rows + '</dl><p>本番では、この中身で受付一覧に1行増え、LINEとメールに通知が届き、LINEの友だち追加ページへ自動で移動します。</p>';
+    host.insertAdjacentElement('afterend', box);
+    form.reset(); btn.disabled = false; var l = btn.querySelector('.lbl'); if (l) l.textContent = label;
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+})();
+</script></head><body><div class="wrap">
+<div class="note">申込フォームの確認用ページです。実際に入力して送信を試せます（本物には送られません）。空のまま送る、電話番号を短く入れる、などでエラーの出方も確かめられます。</div>
+<span class="tag">① 遺品整理のフォームページ</span>
+<!-- ===== 申込フォーム（フォームページ用）ここから。この枠の中を丸ごと、WordPressの「カスタムHTML」ブロックに貼ってください ===== -->
+<div class="nf-form" data-form="" data-source="LP・フォームページ" data-heading="show" style="max-width:480px;margin:0 auto;min-height:320px"></div>
+<script>
+(function () {
+  // ===== 設定（通常は変更不要。項目や文言はスプレッドシートの「設定」タブで変えます） =====
+  var GAS_URL = 'https://script.google.com/macros/s/SAMPLE/exec';
+  var TIMEOUT_MS = 20000;
+  // 設定タブを読み込むまでの間に出す中身（読み込めなかったときもこれで受け付ける）
+  var DEFAULT_CONFIG = {"title":"遺品整理の無料見積もりフォーム","image":"","description":"『お名前』と『電話番号』を入力すると、無料見積もりにお進みいただけます。","button":"無料見積もりに進む","color":"#5170ff","privacyUrl":"","fields":[{"label":"お名前","type":"name","required":true,"placeholder":"例）山田 花子","max":50},{"label":"電話番号","type":"tel","required":true,"placeholder":"例）090-1234-5678","max":20}]};
+  // ==========================================================================================
+
+  var host = (document.currentScript && document.currentScript.previousElementSibling) || document.querySelector('.nf-form:not([data-ready])');
+  if (!host || host.getAttribute('data-ready')) return;
+  host.setAttribute('data-ready', '1');
+  var SOURCE = host.getAttribute('data-source') || '不明';
+  var SHOW_HEADING = host.getAttribute('data-heading') !== 'hide';
+  var FORM = host.getAttribute('data-form') || ''; // 設定タブの「フォームごとの列」の名前。空なら共通の設定
+  var CACHE_KEY = 'nf-config:' + GAS_URL + '#' + FORM;
+
+  // テーマのデザインに崩されないよう、フォームを箱（Shadow DOM）の中に閉じ込める
+  var root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
+  var touched = false;
+  var config = readCache() || DEFAULT_CONFIG;
+  var shown = '';
+
+  function start() {
+    render(config);
+    fetch(GAS_URL + '?config=1' + (FORM ? '&form=' + encodeURIComponent(FORM) : ''), { method: 'GET' })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res || !res.ok || !res.config || !res.config.fields || !res.config.fields.length) return;
+        writeCache(res.config);
+        config = res.config;
+        if (!touched && JSON.stringify(config) !== shown) render(config); // 入力が始まっていたら組み直さない
+      })
+      .catch(function () {});
+  }
+
+  function readCache() {
+    try { var c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); return c && c.fields && c.fields.length ? c : null; } catch (e) { return null; }
+  }
+  function writeCache(c) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch (e) {}
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  }
+  function safeUrl(u) { return /^https:\/\/[^\s"'<>]+$/.test(u || '') ? u : ''; }
+  function safeColor(c) { return /^#[0-9a-fA-F]{6}$/.test(c || '') ? c : '#5170ff'; }
+
+  // ボタンの地の色：メインカラーを白に9割まぜた薄い色
+  function soften(hex) {
+    return '#' + [1, 3, 5].map(function (i) { var v = parseInt(hex.slice(i, i + 2), 16); return ('0' + Math.round(v * 0.1 + 255 * 0.9).toString(16)).slice(-2); }).join('');
+  }
+  // 説明文：【 】で囲んだ部分は赤字で1行に、改行はそのまま改行に
+  function descHtml(t) {
+    return esc(t).replace(/\n*(【[^】]*】)\n*/g, function (m, x) { return '<span class="em">' + x + '</span>'; }).replace(/\n/g, '<br>');
+  }
+
+  function render(c) {
+    shown = JSON.stringify(c);
+    var color = safeColor(c.color);
+    var fields = c.fields.map(function (f, i) {
+      var id = 'f' + i, attrs = ' id="' + id + '" name="' + id + '" maxlength="' + (f.max || 100) + '" placeholder="' + esc(f.placeholder) + '" aria-describedby="' + id + '-err"' + (f.required ? ' aria-required="true"' : '');
+      var input;
+      if (f.type === 'textarea') input = '<textarea rows="4"' + attrs + '></textarea>';
+      else if (f.type === 'tel') input = '<input type="tel" inputmode="tel" autocomplete="tel"' + attrs + '>';
+      else if (f.type === 'email') input = '<input type="email" inputmode="email" autocomplete="email"' + attrs + '>';
+      else if (f.type === 'name') input = '<input type="text" autocomplete="name"' + attrs + '>';
+      else input = '<input type="text"' + attrs + '>';
+      var text = /ください$/.test(f.label) ? f.label : f.label + 'を入力してください';
+      return '<div class="fld"><label for="' + id + '">' + esc(text) + (f.required ? '<span class="req">＊</span>' : '<span class="opt">（任意）</span>') + '</label>'
+        + input
+        + '<div class="err" id="' + id + '-err" role="alert"></div></div>';
+    }).join('');
+    var privacy = safeUrl(c.privacyUrl);
+    root.innerHTML = '<style>' + CSS.replace(/__BRAND__/g, color).replace(/__SOFT__/g, soften(color)) + '</style>'
+      + '<form novalidate class="' + (SHOW_HEADING && (c.title || c.image) ? 'has-head' : 'no-head') + '">'
+      + (SHOW_HEADING && safeUrl(c.image) ? '<img class="banner" src="' + esc(safeUrl(c.image)) + '" alt="' + esc(c.title) + '">' // 見出し画像があれば帯の代わりに画像
+        : SHOW_HEADING && c.title ? '<div class="head"><h2>' + esc(c.title) + '</h2></div>' : '')
+      + (SHOW_HEADING && c.description ? '<p class="desc">' + descHtml(c.description) + '</p>' : '')
+      + fields
+      + '<div class="hp" aria-hidden="true"><label>website<input name="website" tabindex="-1" autocomplete="off"></label></div>'
+      + '<button type="submit"><span class="lbl">' + esc(c.button || '送信する') + '</span><span class="arw" aria-hidden="true"></span></button>'
+      + '<div class="msg" role="status"></div>'
+      + (privacy ? '<p class="privacy">送信いただいた内容は<a href="' + esc(privacy) + '" target="_blank" rel="noopener">プライバシーポリシー</a>に沿って取り扱います。</p>' : '')
+      + '</form>';
+    var form = root.querySelector('form');
+    form.addEventListener('input', function (ev) {
+      touched = true;
+      var el = ev.target; // 入力し直したら、その欄の赤字はその場で消す
+      if (el.id && el.getAttribute('aria-invalid') === 'true') {
+        el.setAttribute('aria-invalid', 'false');
+        var er = form.querySelector('#' + el.id + '-err');
+        if (er) er.textContent = '';
+      }
+    });
+    form.addEventListener('submit', function (ev) { ev.preventDefault(); submit(form, c); });
+  }
+
+  function toHalf(s) { return String(s).replace(/[０-９Ａ-Ｚａ-ｚ＠．－]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0); }); }
+  function check(f, raw) {
+    var v = f.type === 'textarea' ? raw.trim() : raw.replace(/\s+/g, ' ').trim();
+    if (!v) return f.required ? f.label + 'を入力してください' : '';
+    if (f.type === 'tel' && !/^0\d{9,10}$/.test(toHalf(v).replace(/[^\d]/g, ''))) return '0から始まる10〜11桁の番号を入力してください';
+    if (f.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toHalf(v))) return 'メールアドレスの形を確認してください';
+    if (v.length > (f.max || 100)) return (f.max || 100) + '文字以内で入力してください';
+    return '';
+  }
+  function showErrors(form, c, errs) {
+    var first = null;
+    c.fields.forEach(function (f, i) {
+      var el = form.querySelector('#f' + i), msg = errs[f.label] || '';
+      form.querySelector('#f' + i + '-err').textContent = msg;
+      el.setAttribute('aria-invalid', msg ? 'true' : 'false');
+      if (msg && !first) first = el;
+    });
+    if (first) first.focus();
+    return !first;
+  }
+
+  // 送信後の行き先：設定タブの移動先 → なければ直前のページ（同じサイト内だけ）
+  function fallbackUrl() {
+    try { var u = new URL(document.referrer); if (u.origin === location.origin && u.href !== location.href) return u.href; } catch (e) {}
+    return location.origin + '/';
+  }
+  // 同じサイト内へ戻るときだけ「受け付けました」の印を付ける（LINEなど外部のURLには付けない）
+  function withReceived(url) {
+    var u = new URL(url, location.href);
+    if (u.origin === location.origin) u.searchParams.set('received', '1');
+    return u.href;
+  }
+
+  function submit(form, c) {
+    var btn = form.querySelector('button'), msg = form.querySelector('.msg');
+    if (btn.disabled) return;
+    msg.textContent = '';
+    var values = {}, errs = {};
+    c.fields.forEach(function (f, i) {
+      var raw = form.querySelector('#f' + i).value;
+      values[f.label] = raw;
+      var e = check(f, raw);
+      if (e) errs[f.label] = e;
+    });
+    if (!showErrors(form, c, errs)) return;
+
+    var lbl = btn.querySelector('.lbl'), label = lbl.textContent;
+    btn.disabled = true; lbl.textContent = '送信しています…';
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, TIMEOUT_MS);
+    var from = new URLSearchParams(location.search).get('from') || '';
+    // text/plain で送ると事前確認（preflight）が起きず、GASの返事を読める
+    fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ values: values, source: SOURCE, from: from, form: FORM, website: form.website.value }),
+      signal: ctrl ? ctrl.signal : undefined
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        clearTimeout(timer);
+        if (res.ok) {
+          if (typeof window.NF_ON_SUCCESS === 'function') { window.NF_ON_SUCCESS(values, SOURCE, form, btn, label); return; } // 確認用ページだけで使う
+          lbl.textContent = 'ページを移動しています…';
+          window.location.replace(withReceived(safeUrl(res.redirect) || fallbackUrl())); // 戻るボタンでフォームに戻らない
+          return;
+        }
+        btn.disabled = false; lbl.textContent = label;
+        if (res.error === 'invalid' && res.fields) showErrors(form, c, res.fields);
+        else msg.textContent = '送信できませんでした。お手数ですが、時間をおいてもう一度お試しください。';
+      })
+      .catch(function () {
+        clearTimeout(timer);
+        btn.disabled = false; lbl.textContent = label;
+        msg.textContent = '通信に失敗しました。電波の良い場所で、もう一度お試しください。';
+      });
+  }
+
+  // 見た目。先方がいま使っているエルメの見積もりフォームに合わせた作り（枠なし・薄い線・薄い色のボタン）
+  var CSS = ''
+    + ':host{all:initial;display:block}'
+    + 'form{--b:__BRAND__;--soft:__SOFT__;--ink:#333;--line:#cfd3d8;--err:#e0533a;'
+    + 'box-sizing:border-box;position:relative;background:#fff;color:var(--ink);padding:0 0 8px;'
+    + 'font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic",YuGothic,Meiryo,sans-serif;font-size:16px;line-height:1.75;-webkit-text-size-adjust:100%}'
+    + '*{box-sizing:border-box}'
+    + '.head{background:var(--b);padding:24px 10px;margin:0 0 26px;text-align:center}'
+    + 'h2{margin:0;color:#fff;font-size:clamp(17px,5vw,22px);font-weight:800;line-height:1.45;letter-spacing:0;word-break:auto-phrase}'
+    + '.banner{display:block;width:100%;height:auto;margin:0 0 30px}'
+    + '.desc{font-size:16px;margin:0 0 30px;line-height:1.8}'
+    + '.em{display:block;margin:.9em 0;color:var(--err);font-weight:700}'
+    + '.fld{margin-bottom:26px}'
+    + 'label{display:block;font-size:16px;font-weight:700;margin-bottom:10px;letter-spacing:.02em}'
+    + '.req{color:var(--err);font-weight:400;margin-left:14px}'
+    + '.opt{color:#999;font-size:13px;font-weight:400;margin-left:8px}'
+    + 'input,textarea{display:block;width:100%;margin:0;font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:5px;padding:9px 12px;-webkit-appearance:none;appearance:none}'
+    + 'input{height:44px}textarea{resize:vertical;min-height:110px;line-height:1.6}'
+    + 'input::placeholder,textarea::placeholder{color:#b5b9bf}'
+    + 'input:focus,textarea:focus{outline:none;border-color:var(--b)}'
+    + '[aria-invalid="true"]{border-color:var(--err)!important}'
+    + '.err{font-size:13px;color:var(--err);margin-top:6px}.err::before{content:"※"}'
+    + '.err:empty{display:none}'
+    + '.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}'
+    + 'button{display:flex;align-items:center;justify-content:center;gap:10px;width:75%;margin:34px auto 0;min-height:58px;font:inherit;font-size:18px;font-weight:700;letter-spacing:.04em;color:var(--b);'
+    + 'background:var(--soft);border:0;border-radius:10px;padding:12px 16px;cursor:pointer;-webkit-appearance:none;appearance:none;box-shadow:0 2px 3px rgba(0,0,0,.14)}'
+    + '.arw{width:0;height:0;border-style:solid;border-width:7px 0 7px 11px;border-color:transparent transparent transparent currentColor}'
+    + 'button:hover{filter:brightness(.98)}'
+    + 'button:active{box-shadow:none;transform:translateY(1px)}'
+    + 'button:focus-visible{outline:2px solid var(--b);outline-offset:3px}'
+    + 'button:disabled{cursor:wait;opacity:.7}button:disabled .arw{display:none}'
+    + '.msg{font-size:13px;color:var(--err);margin-top:12px;text-align:center}.msg:empty{display:none}'
+    + '.privacy{font-size:12px;color:#777;margin:16px 0 0;text-align:center}.privacy a{color:var(--b)}';
+
+  start();
+})();
+</script>
+<!-- ===== 申込フォーム（フォームページ用）ここまで ===== -->
+
+<div style="height:36px"></div>
+<span class="tag">② 不用品買取のフォームページ（フォームごとの設定の例）</span>
+<!-- ===== 申込フォーム（フォームページ用_不用品買取）ここから。この枠の中を丸ごと、WordPressの「カスタムHTML」ブロックに貼ってください ===== -->
+<div class="nf-form" data-form="不用品買取" data-source="LP・フォームページ" data-heading="show" style="max-width:480px;margin:0 auto;min-height:320px"></div>
+<script>
+(function () {
+  // ===== 設定（通常は変更不要。項目や文言はスプレッドシートの「設定」タブで変えます） =====
+  var GAS_URL = 'https://script.google.com/macros/s/SAMPLE/exec';
+  var TIMEOUT_MS = 20000;
+  // 設定タブを読み込むまでの間に出す中身（読み込めなかったときもこれで受け付ける）
+  var DEFAULT_CONFIG = {"title":"不用品買取の無料出張査定 ご予約フォーム","image":"","description":"『お名前』と『電話番号』をご入力されますと、【無料出張査定の日程調節】にお進みいただけます。","button":"日程調節に進む","color":"#5170ff","privacyUrl":"","fields":[{"label":"お名前","type":"name","required":true,"placeholder":"例）山田 花子","max":50},{"label":"電話番号","type":"tel","required":true,"placeholder":"例）090-1234-5678","max":20}]};
+  // ==========================================================================================
+
+  var host = (document.currentScript && document.currentScript.previousElementSibling) || document.querySelector('.nf-form:not([data-ready])');
+  if (!host || host.getAttribute('data-ready')) return;
+  host.setAttribute('data-ready', '1');
+  var SOURCE = host.getAttribute('data-source') || '不明';
+  var SHOW_HEADING = host.getAttribute('data-heading') !== 'hide';
+  var FORM = host.getAttribute('data-form') || ''; // 設定タブの「フォームごとの列」の名前。空なら共通の設定
+  var CACHE_KEY = 'nf-config:' + GAS_URL + '#' + FORM;
+
+  // テーマのデザインに崩されないよう、フォームを箱（Shadow DOM）の中に閉じ込める
+  var root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
+  var touched = false;
+  var config = readCache() || DEFAULT_CONFIG;
+  var shown = '';
+
+  function start() {
+    render(config);
+    fetch(GAS_URL + '?config=1' + (FORM ? '&form=' + encodeURIComponent(FORM) : ''), { method: 'GET' })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res || !res.ok || !res.config || !res.config.fields || !res.config.fields.length) return;
+        writeCache(res.config);
+        config = res.config;
+        if (!touched && JSON.stringify(config) !== shown) render(config); // 入力が始まっていたら組み直さない
+      })
+      .catch(function () {});
+  }
+
+  function readCache() {
+    try { var c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); return c && c.fields && c.fields.length ? c : null; } catch (e) { return null; }
+  }
+  function writeCache(c) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch (e) {}
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  }
+  function safeUrl(u) { return /^https:\/\/[^\s"'<>]+$/.test(u || '') ? u : ''; }
+  function safeColor(c) { return /^#[0-9a-fA-F]{6}$/.test(c || '') ? c : '#5170ff'; }
+
+  // ボタンの地の色：メインカラーを白に9割まぜた薄い色
+  function soften(hex) {
+    return '#' + [1, 3, 5].map(function (i) { var v = parseInt(hex.slice(i, i + 2), 16); return ('0' + Math.round(v * 0.1 + 255 * 0.9).toString(16)).slice(-2); }).join('');
+  }
+  // 説明文：【 】で囲んだ部分は赤字で1行に、改行はそのまま改行に
+  function descHtml(t) {
+    return esc(t).replace(/\n*(【[^】]*】)\n*/g, function (m, x) { return '<span class="em">' + x + '</span>'; }).replace(/\n/g, '<br>');
+  }
+
+  function render(c) {
+    shown = JSON.stringify(c);
+    var color = safeColor(c.color);
+    var fields = c.fields.map(function (f, i) {
+      var id = 'f' + i, attrs = ' id="' + id + '" name="' + id + '" maxlength="' + (f.max || 100) + '" placeholder="' + esc(f.placeholder) + '" aria-describedby="' + id + '-err"' + (f.required ? ' aria-required="true"' : '');
+      var input;
+      if (f.type === 'textarea') input = '<textarea rows="4"' + attrs + '></textarea>';
+      else if (f.type === 'tel') input = '<input type="tel" inputmode="tel" autocomplete="tel"' + attrs + '>';
+      else if (f.type === 'email') input = '<input type="email" inputmode="email" autocomplete="email"' + attrs + '>';
+      else if (f.type === 'name') input = '<input type="text" autocomplete="name"' + attrs + '>';
+      else input = '<input type="text"' + attrs + '>';
+      var text = /ください$/.test(f.label) ? f.label : f.label + 'を入力してください';
+      return '<div class="fld"><label for="' + id + '">' + esc(text) + (f.required ? '<span class="req">＊</span>' : '<span class="opt">（任意）</span>') + '</label>'
+        + input
+        + '<div class="err" id="' + id + '-err" role="alert"></div></div>';
+    }).join('');
+    var privacy = safeUrl(c.privacyUrl);
+    root.innerHTML = '<style>' + CSS.replace(/__BRAND__/g, color).replace(/__SOFT__/g, soften(color)) + '</style>'
+      + '<form novalidate class="' + (SHOW_HEADING && (c.title || c.image) ? 'has-head' : 'no-head') + '">'
+      + (SHOW_HEADING && safeUrl(c.image) ? '<img class="banner" src="' + esc(safeUrl(c.image)) + '" alt="' + esc(c.title) + '">' // 見出し画像があれば帯の代わりに画像
+        : SHOW_HEADING && c.title ? '<div class="head"><h2>' + esc(c.title) + '</h2></div>' : '')
+      + (SHOW_HEADING && c.description ? '<p class="desc">' + descHtml(c.description) + '</p>' : '')
+      + fields
+      + '<div class="hp" aria-hidden="true"><label>website<input name="website" tabindex="-1" autocomplete="off"></label></div>'
+      + '<button type="submit"><span class="lbl">' + esc(c.button || '送信する') + '</span><span class="arw" aria-hidden="true"></span></button>'
+      + '<div class="msg" role="status"></div>'
+      + (privacy ? '<p class="privacy">送信いただいた内容は<a href="' + esc(privacy) + '" target="_blank" rel="noopener">プライバシーポリシー</a>に沿って取り扱います。</p>' : '')
+      + '</form>';
+    var form = root.querySelector('form');
+    form.addEventListener('input', function (ev) {
+      touched = true;
+      var el = ev.target; // 入力し直したら、その欄の赤字はその場で消す
+      if (el.id && el.getAttribute('aria-invalid') === 'true') {
+        el.setAttribute('aria-invalid', 'false');
+        var er = form.querySelector('#' + el.id + '-err');
+        if (er) er.textContent = '';
+      }
+    });
+    form.addEventListener('submit', function (ev) { ev.preventDefault(); submit(form, c); });
+  }
+
+  function toHalf(s) { return String(s).replace(/[０-９Ａ-Ｚａ-ｚ＠．－]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0); }); }
+  function check(f, raw) {
+    var v = f.type === 'textarea' ? raw.trim() : raw.replace(/\s+/g, ' ').trim();
+    if (!v) return f.required ? f.label + 'を入力してください' : '';
+    if (f.type === 'tel' && !/^0\d{9,10}$/.test(toHalf(v).replace(/[^\d]/g, ''))) return '0から始まる10〜11桁の番号を入力してください';
+    if (f.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toHalf(v))) return 'メールアドレスの形を確認してください';
+    if (v.length > (f.max || 100)) return (f.max || 100) + '文字以内で入力してください';
+    return '';
+  }
+  function showErrors(form, c, errs) {
+    var first = null;
+    c.fields.forEach(function (f, i) {
+      var el = form.querySelector('#f' + i), msg = errs[f.label] || '';
+      form.querySelector('#f' + i + '-err').textContent = msg;
+      el.setAttribute('aria-invalid', msg ? 'true' : 'false');
+      if (msg && !first) first = el;
+    });
+    if (first) first.focus();
+    return !first;
+  }
+
+  // 送信後の行き先：設定タブの移動先 → なければ直前のページ（同じサイト内だけ）
+  function fallbackUrl() {
+    try { var u = new URL(document.referrer); if (u.origin === location.origin && u.href !== location.href) return u.href; } catch (e) {}
+    return location.origin + '/';
+  }
+  // 同じサイト内へ戻るときだけ「受け付けました」の印を付ける（LINEなど外部のURLには付けない）
+  function withReceived(url) {
+    var u = new URL(url, location.href);
+    if (u.origin === location.origin) u.searchParams.set('received', '1');
+    return u.href;
+  }
+
+  function submit(form, c) {
+    var btn = form.querySelector('button'), msg = form.querySelector('.msg');
+    if (btn.disabled) return;
+    msg.textContent = '';
+    var values = {}, errs = {};
+    c.fields.forEach(function (f, i) {
+      var raw = form.querySelector('#f' + i).value;
+      values[f.label] = raw;
+      var e = check(f, raw);
+      if (e) errs[f.label] = e;
+    });
+    if (!showErrors(form, c, errs)) return;
+
+    var lbl = btn.querySelector('.lbl'), label = lbl.textContent;
+    btn.disabled = true; lbl.textContent = '送信しています…';
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, TIMEOUT_MS);
+    var from = new URLSearchParams(location.search).get('from') || '';
+    // text/plain で送ると事前確認（preflight）が起きず、GASの返事を読める
+    fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ values: values, source: SOURCE, from: from, form: FORM, website: form.website.value }),
+      signal: ctrl ? ctrl.signal : undefined
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        clearTimeout(timer);
+        if (res.ok) {
+          if (typeof window.NF_ON_SUCCESS === 'function') { window.NF_ON_SUCCESS(values, SOURCE, form, btn, label); return; } // 確認用ページだけで使う
+          lbl.textContent = 'ページを移動しています…';
+          window.location.replace(withReceived(safeUrl(res.redirect) || fallbackUrl())); // 戻るボタンでフォームに戻らない
+          return;
+        }
+        btn.disabled = false; lbl.textContent = label;
+        if (res.error === 'invalid' && res.fields) showErrors(form, c, res.fields);
+        else msg.textContent = '送信できませんでした。お手数ですが、時間をおいてもう一度お試しください。';
+      })
+      .catch(function () {
+        clearTimeout(timer);
+        btn.disabled = false; lbl.textContent = label;
+        msg.textContent = '通信に失敗しました。電波の良い場所で、もう一度お試しください。';
+      });
+  }
+
+  // 見た目。先方がいま使っているエルメの見積もりフォームに合わせた作り（枠なし・薄い線・薄い色のボタン）
+  var CSS = ''
+    + ':host{all:initial;display:block}'
+    + 'form{--b:__BRAND__;--soft:__SOFT__;--ink:#333;--line:#cfd3d8;--err:#e0533a;'
+    + 'box-sizing:border-box;position:relative;background:#fff;color:var(--ink);padding:0 0 8px;'
+    + 'font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic",YuGothic,Meiryo,sans-serif;font-size:16px;line-height:1.75;-webkit-text-size-adjust:100%}'
+    + '*{box-sizing:border-box}'
+    + '.head{background:var(--b);padding:24px 10px;margin:0 0 26px;text-align:center}'
+    + 'h2{margin:0;color:#fff;font-size:clamp(17px,5vw,22px);font-weight:800;line-height:1.45;letter-spacing:0;word-break:auto-phrase}'
+    + '.banner{display:block;width:100%;height:auto;margin:0 0 30px}'
+    + '.desc{font-size:16px;margin:0 0 30px;line-height:1.8}'
+    + '.em{display:block;margin:.9em 0;color:var(--err);font-weight:700}'
+    + '.fld{margin-bottom:26px}'
+    + 'label{display:block;font-size:16px;font-weight:700;margin-bottom:10px;letter-spacing:.02em}'
+    + '.req{color:var(--err);font-weight:400;margin-left:14px}'
+    + '.opt{color:#999;font-size:13px;font-weight:400;margin-left:8px}'
+    + 'input,textarea{display:block;width:100%;margin:0;font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:5px;padding:9px 12px;-webkit-appearance:none;appearance:none}'
+    + 'input{height:44px}textarea{resize:vertical;min-height:110px;line-height:1.6}'
+    + 'input::placeholder,textarea::placeholder{color:#b5b9bf}'
+    + 'input:focus,textarea:focus{outline:none;border-color:var(--b)}'
+    + '[aria-invalid="true"]{border-color:var(--err)!important}'
+    + '.err{font-size:13px;color:var(--err);margin-top:6px}.err::before{content:"※"}'
+    + '.err:empty{display:none}'
+    + '.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}'
+    + 'button{display:flex;align-items:center;justify-content:center;gap:10px;width:75%;margin:34px auto 0;min-height:58px;font:inherit;font-size:18px;font-weight:700;letter-spacing:.04em;color:var(--b);'
+    + 'background:var(--soft);border:0;border-radius:10px;padding:12px 16px;cursor:pointer;-webkit-appearance:none;appearance:none;box-shadow:0 2px 3px rgba(0,0,0,.14)}'
+    + '.arw{width:0;height:0;border-style:solid;border-width:7px 0 7px 11px;border-color:transparent transparent transparent currentColor}'
+    + 'button:hover{filter:brightness(.98)}'
+    + 'button:active{box-shadow:none;transform:translateY(1px)}'
+    + 'button:focus-visible{outline:2px solid var(--b);outline-offset:3px}'
+    + 'button:disabled{cursor:wait;opacity:.7}button:disabled .arw{display:none}'
+    + '.msg{font-size:13px;color:var(--err);margin-top:12px;text-align:center}.msg:empty{display:none}'
+    + '.privacy{font-size:12px;color:#777;margin:16px 0 0;text-align:center}.privacy a{color:var(--b)}';
+
+  start();
+})();
+</script>
+<!-- ===== 申込フォーム（フォームページ用_不用品買取）ここまで ===== -->
+
+<div style="height:36px"></div>
+<span class="tag">③ LP埋め込み用（入力項目とボタンだけ）</span>
+<!-- ===== 申込フォーム（LP埋め込み用）ここから。この枠の中を丸ごと、WordPressの「カスタムHTML」ブロックに貼ってください ===== -->
+<div class="nf-form" data-form="" data-source="LP・埋め込み" data-heading="hide" style="max-width:480px;margin:0 auto;min-height:320px"></div>
+<script>
+(function () {
+  // ===== 設定（通常は変更不要。項目や文言はスプレッドシートの「設定」タブで変えます） =====
+  var GAS_URL = 'https://script.google.com/macros/s/SAMPLE/exec';
+  var TIMEOUT_MS = 20000;
+  // 設定タブを読み込むまでの間に出す中身（読み込めなかったときもこれで受け付ける）
+  var DEFAULT_CONFIG = {"title":"遺品整理の無料見積もりフォーム","image":"","description":"『お名前』と『電話番号』を入力すると、無料見積もりにお進みいただけます。","button":"無料見積もりに進む","color":"#5170ff","privacyUrl":"","fields":[{"label":"お名前","type":"name","required":true,"placeholder":"例）山田 花子","max":50},{"label":"電話番号","type":"tel","required":true,"placeholder":"例）090-1234-5678","max":20}]};
+  // ==========================================================================================
+
+  var host = (document.currentScript && document.currentScript.previousElementSibling) || document.querySelector('.nf-form:not([data-ready])');
+  if (!host || host.getAttribute('data-ready')) return;
+  host.setAttribute('data-ready', '1');
+  var SOURCE = host.getAttribute('data-source') || '不明';
+  var SHOW_HEADING = host.getAttribute('data-heading') !== 'hide';
+  var FORM = host.getAttribute('data-form') || ''; // 設定タブの「フォームごとの列」の名前。空なら共通の設定
+  var CACHE_KEY = 'nf-config:' + GAS_URL + '#' + FORM;
+
+  // テーマのデザインに崩されないよう、フォームを箱（Shadow DOM）の中に閉じ込める
+  var root = host.attachShadow ? host.attachShadow({ mode: 'open' }) : host;
+  var touched = false;
+  var config = readCache() || DEFAULT_CONFIG;
+  var shown = '';
+
+  function start() {
+    render(config);
+    fetch(GAS_URL + '?config=1' + (FORM ? '&form=' + encodeURIComponent(FORM) : ''), { method: 'GET' })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res || !res.ok || !res.config || !res.config.fields || !res.config.fields.length) return;
+        writeCache(res.config);
+        config = res.config;
+        if (!touched && JSON.stringify(config) !== shown) render(config); // 入力が始まっていたら組み直さない
+      })
+      .catch(function () {});
+  }
+
+  function readCache() {
+    try { var c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); return c && c.fields && c.fields.length ? c : null; } catch (e) { return null; }
+  }
+  function writeCache(c) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch (e) {}
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+  }
+  function safeUrl(u) { return /^https:\/\/[^\s"'<>]+$/.test(u || '') ? u : ''; }
+  function safeColor(c) { return /^#[0-9a-fA-F]{6}$/.test(c || '') ? c : '#5170ff'; }
+
+  // ボタンの地の色：メインカラーを白に9割まぜた薄い色
+  function soften(hex) {
+    return '#' + [1, 3, 5].map(function (i) { var v = parseInt(hex.slice(i, i + 2), 16); return ('0' + Math.round(v * 0.1 + 255 * 0.9).toString(16)).slice(-2); }).join('');
+  }
+  // 説明文：【 】で囲んだ部分は赤字で1行に、改行はそのまま改行に
+  function descHtml(t) {
+    return esc(t).replace(/\n*(【[^】]*】)\n*/g, function (m, x) { return '<span class="em">' + x + '</span>'; }).replace(/\n/g, '<br>');
+  }
+
+  function render(c) {
+    shown = JSON.stringify(c);
+    var color = safeColor(c.color);
+    var fields = c.fields.map(function (f, i) {
+      var id = 'f' + i, attrs = ' id="' + id + '" name="' + id + '" maxlength="' + (f.max || 100) + '" placeholder="' + esc(f.placeholder) + '" aria-describedby="' + id + '-err"' + (f.required ? ' aria-required="true"' : '');
+      var input;
+      if (f.type === 'textarea') input = '<textarea rows="4"' + attrs + '></textarea>';
+      else if (f.type === 'tel') input = '<input type="tel" inputmode="tel" autocomplete="tel"' + attrs + '>';
+      else if (f.type === 'email') input = '<input type="email" inputmode="email" autocomplete="email"' + attrs + '>';
+      else if (f.type === 'name') input = '<input type="text" autocomplete="name"' + attrs + '>';
+      else input = '<input type="text"' + attrs + '>';
+      var text = /ください$/.test(f.label) ? f.label : f.label + 'を入力してください';
+      return '<div class="fld"><label for="' + id + '">' + esc(text) + (f.required ? '<span class="req">＊</span>' : '<span class="opt">（任意）</span>') + '</label>'
+        + input
+        + '<div class="err" id="' + id + '-err" role="alert"></div></div>';
+    }).join('');
+    var privacy = safeUrl(c.privacyUrl);
+    root.innerHTML = '<style>' + CSS.replace(/__BRAND__/g, color).replace(/__SOFT__/g, soften(color)) + '</style>'
+      + '<form novalidate class="' + (SHOW_HEADING && (c.title || c.image) ? 'has-head' : 'no-head') + '">'
+      + (SHOW_HEADING && safeUrl(c.image) ? '<img class="banner" src="' + esc(safeUrl(c.image)) + '" alt="' + esc(c.title) + '">' // 見出し画像があれば帯の代わりに画像
+        : SHOW_HEADING && c.title ? '<div class="head"><h2>' + esc(c.title) + '</h2></div>' : '')
+      + (SHOW_HEADING && c.description ? '<p class="desc">' + descHtml(c.description) + '</p>' : '')
+      + fields
+      + '<div class="hp" aria-hidden="true"><label>website<input name="website" tabindex="-1" autocomplete="off"></label></div>'
+      + '<button type="submit"><span class="lbl">' + esc(c.button || '送信する') + '</span><span class="arw" aria-hidden="true"></span></button>'
+      + '<div class="msg" role="status"></div>'
+      + (privacy ? '<p class="privacy">送信いただいた内容は<a href="' + esc(privacy) + '" target="_blank" rel="noopener">プライバシーポリシー</a>に沿って取り扱います。</p>' : '')
+      + '</form>';
+    var form = root.querySelector('form');
+    form.addEventListener('input', function (ev) {
+      touched = true;
+      var el = ev.target; // 入力し直したら、その欄の赤字はその場で消す
+      if (el.id && el.getAttribute('aria-invalid') === 'true') {
+        el.setAttribute('aria-invalid', 'false');
+        var er = form.querySelector('#' + el.id + '-err');
+        if (er) er.textContent = '';
+      }
+    });
+    form.addEventListener('submit', function (ev) { ev.preventDefault(); submit(form, c); });
+  }
+
+  function toHalf(s) { return String(s).replace(/[０-９Ａ-Ｚａ-ｚ＠．－]/g, function (ch) { return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0); }); }
+  function check(f, raw) {
+    var v = f.type === 'textarea' ? raw.trim() : raw.replace(/\s+/g, ' ').trim();
+    if (!v) return f.required ? f.label + 'を入力してください' : '';
+    if (f.type === 'tel' && !/^0\d{9,10}$/.test(toHalf(v).replace(/[^\d]/g, ''))) return '0から始まる10〜11桁の番号を入力してください';
+    if (f.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toHalf(v))) return 'メールアドレスの形を確認してください';
+    if (v.length > (f.max || 100)) return (f.max || 100) + '文字以内で入力してください';
+    return '';
+  }
+  function showErrors(form, c, errs) {
+    var first = null;
+    c.fields.forEach(function (f, i) {
+      var el = form.querySelector('#f' + i), msg = errs[f.label] || '';
+      form.querySelector('#f' + i + '-err').textContent = msg;
+      el.setAttribute('aria-invalid', msg ? 'true' : 'false');
+      if (msg && !first) first = el;
+    });
+    if (first) first.focus();
+    return !first;
+  }
+
+  // 送信後の行き先：設定タブの移動先 → なければ直前のページ（同じサイト内だけ）
+  function fallbackUrl() {
+    try { var u = new URL(document.referrer); if (u.origin === location.origin && u.href !== location.href) return u.href; } catch (e) {}
+    return location.origin + '/';
+  }
+  // 同じサイト内へ戻るときだけ「受け付けました」の印を付ける（LINEなど外部のURLには付けない）
+  function withReceived(url) {
+    var u = new URL(url, location.href);
+    if (u.origin === location.origin) u.searchParams.set('received', '1');
+    return u.href;
+  }
+
+  function submit(form, c) {
+    var btn = form.querySelector('button'), msg = form.querySelector('.msg');
+    if (btn.disabled) return;
+    msg.textContent = '';
+    var values = {}, errs = {};
+    c.fields.forEach(function (f, i) {
+      var raw = form.querySelector('#f' + i).value;
+      values[f.label] = raw;
+      var e = check(f, raw);
+      if (e) errs[f.label] = e;
+    });
+    if (!showErrors(form, c, errs)) return;
+
+    var lbl = btn.querySelector('.lbl'), label = lbl.textContent;
+    btn.disabled = true; lbl.textContent = '送信しています…';
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, TIMEOUT_MS);
+    var from = new URLSearchParams(location.search).get('from') || '';
+    // text/plain で送ると事前確認（preflight）が起きず、GASの返事を読める
+    fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ values: values, source: SOURCE, from: from, form: FORM, website: form.website.value }),
+      signal: ctrl ? ctrl.signal : undefined
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        clearTimeout(timer);
+        if (res.ok) {
+          if (typeof window.NF_ON_SUCCESS === 'function') { window.NF_ON_SUCCESS(values, SOURCE, form, btn, label); return; } // 確認用ページだけで使う
+          lbl.textContent = 'ページを移動しています…';
+          window.location.replace(withReceived(safeUrl(res.redirect) || fallbackUrl())); // 戻るボタンでフォームに戻らない
+          return;
+        }
+        btn.disabled = false; lbl.textContent = label;
+        if (res.error === 'invalid' && res.fields) showErrors(form, c, res.fields);
+        else msg.textContent = '送信できませんでした。お手数ですが、時間をおいてもう一度お試しください。';
+      })
+      .catch(function () {
+        clearTimeout(timer);
+        btn.disabled = false; lbl.textContent = label;
+        msg.textContent = '通信に失敗しました。電波の良い場所で、もう一度お試しください。';
+      });
+  }
+
+  // 見た目。先方がいま使っているエルメの見積もりフォームに合わせた作り（枠なし・薄い線・薄い色のボタン）
+  var CSS = ''
+    + ':host{all:initial;display:block}'
+    + 'form{--b:__BRAND__;--soft:__SOFT__;--ink:#333;--line:#cfd3d8;--err:#e0533a;'
+    + 'box-sizing:border-box;position:relative;background:#fff;color:var(--ink);padding:0 0 8px;'
+    + 'font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic",YuGothic,Meiryo,sans-serif;font-size:16px;line-height:1.75;-webkit-text-size-adjust:100%}'
+    + '*{box-sizing:border-box}'
+    + '.head{background:var(--b);padding:24px 10px;margin:0 0 26px;text-align:center}'
+    + 'h2{margin:0;color:#fff;font-size:clamp(17px,5vw,22px);font-weight:800;line-height:1.45;letter-spacing:0;word-break:auto-phrase}'
+    + '.banner{display:block;width:100%;height:auto;margin:0 0 30px}'
+    + '.desc{font-size:16px;margin:0 0 30px;line-height:1.8}'
+    + '.em{display:block;margin:.9em 0;color:var(--err);font-weight:700}'
+    + '.fld{margin-bottom:26px}'
+    + 'label{display:block;font-size:16px;font-weight:700;margin-bottom:10px;letter-spacing:.02em}'
+    + '.req{color:var(--err);font-weight:400;margin-left:14px}'
+    + '.opt{color:#999;font-size:13px;font-weight:400;margin-left:8px}'
+    + 'input,textarea{display:block;width:100%;margin:0;font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:5px;padding:9px 12px;-webkit-appearance:none;appearance:none}'
+    + 'input{height:44px}textarea{resize:vertical;min-height:110px;line-height:1.6}'
+    + 'input::placeholder,textarea::placeholder{color:#b5b9bf}'
+    + 'input:focus,textarea:focus{outline:none;border-color:var(--b)}'
+    + '[aria-invalid="true"]{border-color:var(--err)!important}'
+    + '.err{font-size:13px;color:var(--err);margin-top:6px}.err::before{content:"※"}'
+    + '.err:empty{display:none}'
+    + '.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}'
+    + 'button{display:flex;align-items:center;justify-content:center;gap:10px;width:75%;margin:34px auto 0;min-height:58px;font:inherit;font-size:18px;font-weight:700;letter-spacing:.04em;color:var(--b);'
+    + 'background:var(--soft);border:0;border-radius:10px;padding:12px 16px;cursor:pointer;-webkit-appearance:none;appearance:none;box-shadow:0 2px 3px rgba(0,0,0,.14)}'
+    + '.arw{width:0;height:0;border-style:solid;border-width:7px 0 7px 11px;border-color:transparent transparent transparent currentColor}'
+    + 'button:hover{filter:brightness(.98)}'
+    + 'button:active{box-shadow:none;transform:translateY(1px)}'
+    + 'button:focus-visible{outline:2px solid var(--b);outline-offset:3px}'
+    + 'button:disabled{cursor:wait;opacity:.7}button:disabled .arw{display:none}'
+    + '.msg{font-size:13px;color:var(--err);margin-top:12px;text-align:center}.msg:empty{display:none}'
+    + '.privacy{font-size:12px;color:#777;margin:16px 0 0;text-align:center}.privacy a{color:var(--b)}';
+
+  start();
+})();
+</script>
+<!-- ===== 申込フォーム（LP埋め込み用）ここまで ===== -->
+
+</div></body></html>
