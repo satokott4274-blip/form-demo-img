@@ -34,7 +34,7 @@ footer{text-align:center;font-size:11px;color:#9aa1ad;padding:26px 16px 40px}
 <h1>ご遺品の整理、<br><em>まずは無料の<br>お見積もり</em>から</h1>
 <p>大切なお品物を一つひとつ丁寧に。<br>ご家族の気持ちに寄り添って整理いたします。</p>
 <div class="points"><span>最短即日</span><span>追加料金なし</span><span>買取で費用を軽く</span></div>
-<a class="cta" href="form.html?from=kasou-lp">無料見積もりはこちら<small>お名前と電話番号だけ・30秒で完了</small></a></div>
+<a class="cta" href="form.html">無料見積もりはこちら<small>お名前と電話番号だけ・30秒で完了</small></a></div>
 <section><h2><small>REASON</small>選ばれる3つの理由</h2>
 <div class="card"><i>1</i><div><b>お見積もり後の追加料金なし</b><span>当日になって金額が変わることはありません。</span></div></div>
 <div class="card"><i>2</i><div><b>ご供養・形見分けもお手伝い</b><span>思い出の品は一点ずつ確認しながら仕分けます。</span></div></div>
@@ -44,7 +44,7 @@ footer{text-align:center;font-size:11px;color:#9aa1ad;padding:26px 16px 40px}
 <div><b>お電話でご希望の確認</b><span>担当者から折り返し、訪問日を決めます。</span></div>
 <div><b>ご訪問・お見積もり</b><span>お部屋を拝見して、その場で金額をお伝えします。</span></div>
 <div><b>作業・お引き渡し</b><span>仕分け・搬出・清掃まで行います。</span></div></div>
-<p style="text-align:center;margin-top:20px"><a class="cta" href="form.html?from=kasou-lp">無料見積もりはこちら<small>フォームのページに移ります</small></a></p></div></section>
+<p style="text-align:center;margin-top:20px"><a class="cta" href="form.html">無料見積もりはこちら<small>フォームのページに移ります</small></a></p></div></section>
 <section><h2><small>PRICE</small>料金の目安（見本）</h2>
 <table><tr><th>間取り</th><th>作業人数</th><th style="text-align:right">料金の目安</th></tr><tr><td>1K・1R</td><td>1〜2名</td><td>〇〇,000円〜</td></tr><tr><td>1LDK・2DK</td><td>2〜3名</td><td>〇〇,000円〜</td></tr><tr><td>3LDK以上</td><td>3名〜</td><td>〇〇〇,000円〜</td></tr></table>
 <p class="note">※見本の表です。実際の料金ではありません。</p></section>
@@ -198,6 +198,16 @@ footer{text-align:center;font-size:11px;color:#9aa1ad;padding:26px 16px 40px}
     return u.href;
   }
 
+  // \u6d41\u5165\u5143\u306e\u76ee\u5370\uff1a\u3053\u306e\u30da\u30fc\u30b8\u306eURL\u306e ?from=\uff08\u306a\u3051\u308c\u3070 ?utm_source=\uff09\u3002
+  // \u30dc\u30bf\u30f3\u3067LP\u304b\u3089\u79fb\u3063\u3066\u304d\u305f\u3068\u304d\u306f\u3001\u76f4\u524d\u306eLP\uff08\u540c\u3058\u30b5\u30a4\u30c8\uff09\u306eURL\u306b\u4ed8\u3044\u3066\u3044\u305f\u3082\u306e\u3092\u4f7f\u3046
+  function sourceTag() {
+    function pick(search) { var q = new URLSearchParams(search); return q.get('from') || q.get('utm_source') || ''; }
+    var own = pick(location.search);
+    if (own) return own;
+    try { var u = new URL(document.referrer); if (u.origin === location.origin) return pick(u.search); } catch (e) {}
+    return '';
+  }
+
   function submit(form, c) {
     var btn = form.querySelector('button'), msg = form.querySelector('.msg');
     if (btn.disabled) return;
@@ -213,7 +223,7 @@ footer{text-align:center;font-size:11px;color:#9aa1ad;padding:26px 16px 40px}
 
     var lbl = btn.querySelector('.lbl'), label = lbl.textContent;
     btn.disabled = true; lbl.textContent = '\u9001\u4fe1\u3057\u3066\u3044\u307e\u3059\u2026';
-    var from = new URLSearchParams(location.search).get('from') || '';
+    var from = sourceTag();
     var body = JSON.stringify({ values: values, source: SOURCE, from: from, form: FORM, website: form.website.value });
     var timer;
     // \u8fd4\u4e8b\u3092\u53d7\u3051\u53d6\u308c\u306a\u304b\u3063\u305f\u3068\u304d\uff08\u96fb\u6ce2\u306e\u5207\u308c\u76ee\u306a\u3069\uff09\u306f\u30011\u56de\u3060\u3051\u81ea\u52d5\u3067\u9001\u308a\u76f4\u3059\u3002
